@@ -4,7 +4,7 @@ import uuid
 
 import google.generativeai as genai
 from gtts import gTTS
-from openai import OpenAI
+from groq import Groq
 
 
 app = Flask(__name__)
@@ -23,7 +23,7 @@ os.makedirs(AUDIO_DIR, exist_ok=True)
 # =========================================================
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
 
 # =========================================================
@@ -33,8 +33,8 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 if not GEMINI_API_KEY:
     print("PERINGATAN: GEMINI_API_KEY belum diatur!")
 
-if not OPENAI_API_KEY:
-    print("PERINGATAN: OPENAI_API_KEY belum diatur!")
+if not GROQ_API_KEY:
+    print("PERINGATAN: GROQ_API_KEY belum diatur!")
 
 
 # =========================================================
@@ -48,13 +48,13 @@ model = genai.GenerativeModel("gemini-1.5-flash")
 
 
 # =========================================================
-# OPENAI - WHISPER
+# GROQ - WHISPER (SPEECH TO TEXT)
 # =========================================================
 
-ai_client = None
+groq_client = None
 
-if OPENAI_API_KEY:
-    ai_client = OpenAI(api_key=OPENAI_API_KEY)
+if GROQ_API_KEY:
+    groq_client = Groq(api_key=GROQ_API_KEY)
 
 
 # =========================================================
@@ -65,7 +65,7 @@ if OPENAI_API_KEY:
 def home():
     return jsonify({
         "status": "online",
-        "message": "Mainan AI Server aktif"
+        "message": "Mainan AI Server (Groq + Gemini) aktif"
     })
 
 
@@ -79,13 +79,13 @@ def voice_chat():
     try:
 
         # -------------------------------------------------
-        # CEK OPENAI API
+        # CEK GROQ API
         # -------------------------------------------------
 
-        if ai_client is None:
+        if groq_client is None:
             return jsonify({
                 "status": "error",
-                "error": "OPENAI_API_KEY belum diatur di server"
+                "error": "GROQ_API_KEY belum diatur di server"
             }), 500
 
 
@@ -101,7 +101,7 @@ def voice_chat():
 
 
         # -------------------------------------------------
-        # 1. TERIMA AUDIO WAV DARI ESP32
+        # 1. TERIMA AUDIO WAV DARI ESP32 / KLIEN
         # -------------------------------------------------
 
         wav_data = request.data
@@ -146,16 +146,16 @@ def voice_chat():
 
 
         # -------------------------------------------------
-        # 3. SPEECH TO TEXT - WHISPER
+        # 3. SPEECH TO TEXT - GROQ WHISPER
         # -------------------------------------------------
 
-        print("Memproses suara dengan Whisper...")
+        print("Memproses suara dengan Groq Whisper...")
 
 
         with open(input_path, "rb") as audio_file:
 
-            transcript = ai_client.audio.transcriptions.create(
-                model="whisper-1",
+            transcript = groq_client.audio.transcriptions.create(
+                model="whisper-large-v3-turbo",
                 file=audio_file,
                 language="id"
             )
@@ -269,7 +269,7 @@ Pertanyaan anak:
 
 
         # -------------------------------------------------
-        # 7. KIRIM HASIL KE ESP32
+        # 7. KIRIM HASIL KE ESP32 / KLIEN
         # -------------------------------------------------
 
         return jsonify({
