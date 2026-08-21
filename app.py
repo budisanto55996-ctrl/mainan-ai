@@ -18,16 +18,20 @@ os.makedirs(AUDIO_DIR, exist_ok=True)
 # =========================================================
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
-# =========================================================
-# CEK API KEY
-# =========================================================
-if not GROQ_API_KEY:
-    print("PERINGATAN: GROQ_API_KEY belum diatur!")
-
 # Inisialisasi Groq Client
 groq_client = None
 if GROQ_API_KEY:
     groq_client = Groq(api_key=GROQ_API_KEY)
+
+# =========================================================
+# MEMORI / RIWAYAT PERCAKAPAN
+# =========================================================
+conversation_history = [
+    {
+        "role": "system",
+        "content": "Kamu adalah mainan robot AI untuk anak-anak berkarakter anak perempuan yang sangat ceria, lucu, dan ramah. Gunakan bahasa Indonesia yang santai dan ramah anak. Jangan pakai kata kasar. Jawab sangat singkat maksimal 2 kalimat."
+    }
+]
 
 # =========================================================
 # FUNGSI EDGE-TTS (SUARA ANAK PEREMPUAN CERIA)
@@ -84,19 +88,32 @@ def voice_chat():
                 "error": "Suara tidak terdeteksi"
             }), 400
 
-        # 2. Groq AI - Menggunakan model openai/gpt-oss-20b
+        # 2. Masukkan pertanyaan user ke memori percakapan
+        conversation_history.append({
+            "role": "user",
+            "content": user_text
+        })
+
+        # Batasi memori agar tidak terlalu panjang (misal maksimal 10 pesan terakhir + system prompt)
+        global conversation_history
+        if len(conversation_history) > 11:
+            # Pertahankan system prompt di index 0, ambil 10 pesan terakhir
+            conversation_history = [conversation_history[0]] + conversation_history[-10:]
+
+        # 3. Kirim seluruh riwayat percakapan ke Groq AI
         chat_completion = groq_client.chat.completions.create(
-            messages=[
-                {
-                    "role": "user",
-                    "content": "Kamu adalah mainan robot AI untuk anak-anak berkarakter anak perempuan yang sangat ceria, lucu, dan ramah. Gunakan bahasa Indonesia yang santai dan ramah anak. Jangan pakai kata kasar. Jawab sangat singkat maksimal 2 kalimat.\n\nPertanyaan anak: " + user_text
-                }
-            ],
+            messages=conversation_history,
             model="openai/gpt-oss-20b",
         )
         ai_reply = chat_completion.choices[0].message.content.strip()
 
-        # 3. Text to Speech (Edge-TTS)
+        # 4. Masukkan jawaban AI ke memori percakapan
+        conversation_history.append({
+            "role": "assistant",
+            "content": ai_reply
+        })
+
+        # 5. Text to Speech (Edge-TTS)
         output_filename = "response_" + str(uuid.uuid4()) + ".mp3"
         output_path = os.path.join(AUDIO_DIR, output_filename)
         
