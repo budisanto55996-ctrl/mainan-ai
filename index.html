@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mainan AI - Voice Chat HP</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; background: #f4f4f9; }
+        button { padding: 15px 30px; font-size: 18px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:active { background: #0056b3; }
+        #status { margin-top: 20px; font-weight: bold; color: #333; }
+        #result { margin-top: 20px; font-size: 16px; color: #555; max-width: 400px; margin-left: auto; margin-right: auto; text-align: left; }
+    </style>
+</head>
+<body>
+
+    <h2>Robot AI Anak (Voice Chat)</h2>
+    <p>Tekan tombol dan bicara, lalu lepaskan atau tunggu selesai.</p>
+
+    <button id="recordBtn" onclick="toggleRecording()">🎤 Tekan untuk Bicara</button>
+    <div id="status">Status: Siap</div>
+    <div id="result"></div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+
+        const serverUrl = "https://web-production-f9096.up.railway.app/voice-chat";
+
+        async function toggleRecording() {
+            const btn = document.getElementById("recordBtn");
+            const status = document.getElementById("status");
+            const result = document.getElementById("result");
+
+            if (!isRecording) {
+                // Mulai Rekam
+                audioChunks = [];
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    
+                    mediaRecorder.ondataavailable = event => {
+                        audioChunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = async () => {
+                        status.innerText = "Status: Mengirim suara ke server...";
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        
+                        // Kirim ke Railway
+                        try {
+                            const response = await fetch(serverUrl, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'audio/wav' },
+                                body: audioBlob
+                            });
+
+                            const data = await response.json();
+                            if (data.status === "success") {
+                                status.innerText = "Status: Selesai!";
+                                result.innerHTML = `<b>Anda:</b> ${data.user_text}<br><br><b>AI:</b> ${data.ai_reply}`;
+                                
+                                // Putar suara balasan AI
+                                const audio = new Audio(data.audio_url);
+                                audio.play();
+                            } else {
+                                status.innerText = "Status: Error dari server";
+                                result.innerText = data.error;
+                            }
+                        } catch (err) {
+                            status.innerText = "Status: Gagal terhubung ke server";
+                            console.error(err);
+                        }
+
+                        btn.innerText = "🎤 Tekan untuk Bicara";
+                        btn.style.background = "#007bff";
+                        isRecording = false;
+                    };
+
+                    mediaRecorder.start();
+                    isRecording = true;
+                    btn.innerText = "🛑 Berhenti & Kirim";
+                    btn.style.background = "#dc3545";
+                    status.innerText = "Status: Sedang mendengarkan... (Bicara sekarang)";
+                    result.innerText = "";
+
+                } catch (err) {
+                    alert("Gagal mengakses mikrofon: " + err);
+                }
+            } else {
+                // Berhenti Rekam
+                mediaRecorder.stop();
+                // Matikan izin mic stream
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            }
+        }
+    </script>
+</body>
+</html>
