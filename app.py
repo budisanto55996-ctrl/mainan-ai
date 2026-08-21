@@ -18,12 +18,19 @@ os.makedirs(AUDIO_DIR, exist_ok=True)
 # =========================================================
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
+# =========================================================
+# CEK API KEY
+# =========================================================
+if not GROQ_API_KEY:
+    print("PERINGATAN: GROQ_API_KEY belum diatur!")
+
+# Inisialisasi Groq Client
 groq_client = None
 if GROQ_API_KEY:
     groq_client = Groq(api_key=GROQ_API_KEY)
 
 # =========================================================
-# MEMORI / RIWAYAT PERCAKAPAN GLOBAL
+# MEMORI / RIWAYAT PERCAKAPAN
 # =========================================================
 conversation_history = [
     {
@@ -33,7 +40,7 @@ conversation_history = [
 ]
 
 # =========================================================
-# FUNGSI EDGE-TTS
+# FUNGSI EDGE-TTS (SUARA ANAK PEREMPUAN CERIA)
 # =========================================================
 async def generate_edge_tts(text, output_path):
     voice = "id-ID-GadisNeural"
@@ -88,24 +95,24 @@ def voice_chat():
                 "error": "Suara tidak terdeteksi"
             }), 400
 
-        # 2. Tambahkan input user ke memori
+        # 2. Masukkan pertanyaan user ke memori percakapan
         conversation_history.append({
             "role": "user",
             "content": user_text
         })
 
-        # Batasi riwayat agar tidak terlalu panjang (System prompt di index 0 + max 10 pesan terakhir)
+        # Batasi memori maksimal 11 pesan (System prompt + 10 percakapan terakhir) agar tidak overload
         if len(conversation_history) > 11:
             conversation_history = [conversation_history[0]] + conversation_history[-10:]
 
-        # 3. Kirim riwayat ke Groq AI
+        # 3. Kirim seluruh riwayat ke Groq AI
         chat_completion = groq_client.chat.completions.create(
             messages=conversation_history,
             model="openai/gpt-oss-20b",
         )
         ai_reply = chat_completion.choices[0].message.content.strip()
 
-        # 4. Tambahkan balasan AI ke memori
+        # 4. Masukkan jawaban AI ke memori percakapan
         conversation_history.append({
             "role": "assistant",
             "content": ai_reply
@@ -127,7 +134,6 @@ def voice_chat():
         })
 
     except Exception as e:
-        print("ERROR TERJADI:", str(e))
         return jsonify({"status": "error", "error": str(e)}), 500
 
 # =========================================================
