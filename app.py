@@ -58,15 +58,13 @@ if GROQ_API_KEY:
 
 
 # =========================================================
-# HALAMAN UTAMA
+# HALAMAN UTAMA (MENAMPILKAN WEB INTERAKTIF)
 # =========================================================
 
 @app.route("/")
 def home():
-    return jsonify({
-        "status": "online",
-        "message": "Mainan AI Server (Groq + Gemini) aktif"
-    })
+    # Menampilkan file index.html langsung dari folder utama proyek
+    return send_from_directory(".", "index.html")
 
 
 # =========================================================
@@ -121,7 +119,7 @@ def voice_chat():
 
         print()
         print("========================================")
-        print("AUDIO DITERIMA DARI ESP32")
+        print("AUDIO DITERIMA DARI KLIEN")
         print("Ukuran:", len(wav_data), "bytes")
         print("========================================")
 
@@ -269,7 +267,7 @@ Pertanyaan anak:
 
 
         # -------------------------------------------------
-        # 7. KIRIM HASIL KE ESP32 / KLIEN
+        # 7. KIRIM HASIL KE KLIEN (ESP32 / BROWSER)
         # -------------------------------------------------
 
         return jsonify({
