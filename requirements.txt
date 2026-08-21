@@ -1,5 +1,5 @@
 Flask
 google-generativeai
-gTTS
 groq
 gunicorn
+edge-tts
