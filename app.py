@@ -92,7 +92,7 @@ def voice_chat():
                 "error": "Suara tidak terdeteksi"
             }), 400
 
-        # 2. Groq AI (Llama 3) - Pengganti Gemini
+        # 2. Groq AI (Llama 3.3) - Pengganti Gemini
         print("Mengirim pertanyaan ke Groq Llama 3...")
         chat_completion = groq_client.chat.completions.create(
             messages=[
@@ -105,7 +105,7 @@ def voice_chat():
                     "content": user_text
                 }
             ],
-            model="llama-3.1-8b-instant",
+            model="llama-3.3-70b-versatile",
         )
         ai_reply = chat_completion.choices[0].message.content.strip()
         print("\nAI:\n", ai_reply)
