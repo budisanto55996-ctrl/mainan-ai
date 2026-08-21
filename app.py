@@ -18,13 +18,12 @@ os.makedirs(AUDIO_DIR, exist_ok=True)
 # =========================================================
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
-# Inisialisasi Groq Client
 groq_client = None
 if GROQ_API_KEY:
     groq_client = Groq(api_key=GROQ_API_KEY)
 
 # =========================================================
-# MEMORI / RIWAYAT PERCAKAPAN
+# MEMORI / RIWAYAT PERCAKAPAN GLOBAL
 # =========================================================
 conversation_history = [
     {
@@ -34,7 +33,7 @@ conversation_history = [
 ]
 
 # =========================================================
-# FUNGSI EDGE-TTS (SUARA ANAK PEREMPUAN CERIA)
+# FUNGSI EDGE-TTS
 # =========================================================
 async def generate_edge_tts(text, output_path):
     voice = "id-ID-GadisNeural"
@@ -53,6 +52,7 @@ def home():
 # =========================================================
 @app.route("/voice-chat", methods=["POST"])
 def voice_chat():
+    global conversation_history
     try:
         if groq_client is None:
             return jsonify({
@@ -88,26 +88,24 @@ def voice_chat():
                 "error": "Suara tidak terdeteksi"
             }), 400
 
-        # 2. Masukkan pertanyaan user ke memori percakapan
+        # 2. Tambahkan input user ke memori
         conversation_history.append({
             "role": "user",
             "content": user_text
         })
 
-        # Batasi memori agar tidak terlalu panjang (misal maksimal 10 pesan terakhir + system prompt)
-        global conversation_history
+        # Batasi riwayat agar tidak terlalu panjang (System prompt di index 0 + max 10 pesan terakhir)
         if len(conversation_history) > 11:
-            # Pertahankan system prompt di index 0, ambil 10 pesan terakhir
             conversation_history = [conversation_history[0]] + conversation_history[-10:]
 
-        # 3. Kirim seluruh riwayat percakapan ke Groq AI
+        # 3. Kirim riwayat ke Groq AI
         chat_completion = groq_client.chat.completions.create(
             messages=conversation_history,
             model="openai/gpt-oss-20b",
         )
         ai_reply = chat_completion.choices[0].message.content.strip()
 
-        # 4. Masukkan jawaban AI ke memori percakapan
+        # 4. Tambahkan balasan AI ke memori
         conversation_history.append({
             "role": "assistant",
             "content": ai_reply
@@ -129,6 +127,7 @@ def voice_chat():
         })
 
     except Exception as e:
+        print("ERROR TERJADI:", str(e))
         return jsonify({"status": "error", "error": str(e)}), 500
 
 # =========================================================
