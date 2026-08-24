@@ -172,7 +172,7 @@ def voice_chat():
         if not wav_data or len(wav_data) < 44:
             return jsonify({"status": "error", "error": "Data audio kosong atau tidak valid"}), 400
 
-        # Simpan sementara di folder tmp Vercel
+        # Simpan sementara di memori/folder tmp Vercel
         input_path = "/tmp/input_audio.wav"
         with open(input_path, "wb") as f:
             f.write(wav_data)
@@ -189,9 +189,9 @@ def voice_chat():
         if not user_text:
             return jsonify({"status": "error", "error": "Suara tidak terdeteksi"}), 400
 
-        # 2. Groq Llama (AI Chat) - Menggunakan model yang aktif saat ini
+        # 2. Groq AI Model - Menggunakan model OpenAI GPT OSS 20B di Groq yang sangat cepat & aktif
         chat_completion = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-20b",
             messages=[
                 {
                     "role": "system",
