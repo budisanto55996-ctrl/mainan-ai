@@ -22,7 +22,7 @@ if not GROQ_API_KEY:
     print("PERINGATAN: GROQ_API_KEY belum diatur!")
 
 # =========================================================
-# GROQ CLIENT (Whisper & Llama 3)
+# GROQ CLIENT (Whisper & Llama)
 # =========================================================
 groq_client = None
 if GROQ_API_KEY:
@@ -41,7 +41,6 @@ async def generate_edge_tts(text, output_path):
 # =========================================================
 @app.route("/")
 def home():
-    # Mengambil file index.html dari direktori yang sama dengan app.py
     return send_from_directory('.', 'index.html')
 
 # =========================================================
@@ -83,8 +82,8 @@ def voice_chat():
         if not user_text:
             return jsonify({"status": "error", "error": "Suara tidak terdeteksi"}), 400
 
-        # 2. Chat AI dengan Groq Llama 3
-        print("Mengirim pertanyaan ke Groq Llama 3...")
+        # 2. Chat AI dengan Groq Llama (Diperbarui)
+        print("Mengirim pertanyaan ke Groq Llama...")
         chat_completion = groq_client.chat.completions.create(
             messages=[
                 {
@@ -93,7 +92,7 @@ def voice_chat():
                 },
                 {"role": "user", "content": user_text}
             ],
-            model="llama-3.1-8b-instant",
+            model="llama3-8b-8192",
         )
         ai_reply = chat_completion.choices[0].message.content.strip()
         print("\nAI:", ai_reply)
