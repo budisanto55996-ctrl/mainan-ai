@@ -22,11 +22,21 @@ if not GROQ_API_KEY:
     print("PERINGATAN: GROQ_API_KEY belum diatur!")
 
 # =========================================================
-# GROQ CLIENT (Whisper & Llama/GPT-OSS)
+# GROQ CLIENT (Whisper & AI)
 # =========================================================
 groq_client = None
 if GROQ_API_KEY:
     groq_client = Groq(api_key=GROQ_API_KEY)
+
+# =========================================================
+# MEMORY / RIWAYAT PERCAKAPAN (Agar Nyambung)
+# =========================================================
+chat_history = [
+    {
+        "role": "system", 
+        "content": "Kamu adalah robot anak perempuan yang ceria, lucu, dan ramah untuk anak-anak. Gunakan bahasa Indonesia santai. Jawab maksimal 4 kalimat."
+    }
+]
 
 # =========================================================
 # FUNGSI TTS (Suara Anak Perempuan Ceria - Edge-TTS)
@@ -48,6 +58,7 @@ def home():
 # =========================================================
 @app.route("/voice-chat", methods=["POST"])
 def voice_chat():
+    global chat_history
     try:
         if groq_client is None:
             return jsonify({"status": "error", "error": "GROQ_API_KEY belum diatur di server"}), 500
@@ -82,25 +93,29 @@ def voice_chat():
         if not user_text:
             return jsonify({"status": "error", "error": "Suara tidak terdeteksi"}), 400
 
-        # 2. Chat AI dengan Groq Model Aktif (openai/gpt-oss-20b)
+        # Masukkan pertanyaan user ke riwayat percakapan
+        chat_history.append({"role": "user", "content": user_text})
+
+        # Batasi riwayat agar tidak terlalu panjang (System prompt + 10 chat terakhir)
+        if len(chat_history) > 11:
+            chat_history = [chat_history[0]] + chat_history[-10:]
+
+        # 2. Chat AI dengan Groq Model Aktif & History Lengkap
         print("Mengirim pertanyaan ke Groq AI...")
         chat_completion = groq_client.chat.completions.create(
-            messages=[
-                {
-                    "role": "system", 
-                    "content": "Kamu adalah robot anak perempuan yang ceria, lucu, dan ramah untuk anak-anak. Gunakan bahasa Indonesia santai. Jawab maksimal 4 kalimat."
-                },
-                {"role": "user", "content": user_text}
-            ],
+            messages=chat_history,
             model="openai/gpt-oss-20b",
             temperature=0.7,
-            max_tokens=150
+            max_tokens=300  # Ditingkatkan agar kalimat tidak terpotong
         )
         ai_reply = chat_completion.choices[0].message.content.strip()
         print("\nAI:", ai_reply)
 
         if not ai_reply:
             return jsonify({"status": "error", "error": "Groq tidak memberikan jawaban"}), 500
+
+        # Masukkan jawaban AI ke riwayat percakapan
+        chat_history.append({"role": "assistant", "content": ai_reply})
 
         # 3. Text to Speech (Edge-TTS Suara Anak Perempuan)
         output_filename = "response_" + str(uuid.uuid4()) + ".mp3"
