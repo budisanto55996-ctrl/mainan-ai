@@ -37,14 +37,12 @@ async def generate_edge_tts(text, output_path):
     await communicate.save(output_path)
 
 # =========================================================
-# HALAMAN UTAMA
+# HALAMAN UTAMA (Langsung Buka index.html Sejajar app.py)
 # =========================================================
 @app.route("/")
 def home():
-    return jsonify({
-        "status": "online",
-        "message": "Mainan AI Server (Groq Llama 3 + Edge-TTS) aktif"
-    })
+    # Mengambil file index.html dari direktori yang sama dengan app.py
+    return send_from_directory('.', 'index.html')
 
 # =========================================================
 # VOICE CHAT (Untuk HP & ESP32)
