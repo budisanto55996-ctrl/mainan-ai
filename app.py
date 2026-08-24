@@ -82,8 +82,8 @@ def voice_chat():
         if not user_text:
             return jsonify({"status": "error", "error": "Suara tidak terdeteksi"}), 400
 
-        # 2. Chat AI dengan Groq Llama (Diperbarui)
-        print("Mengirim pertanyaan ke Groq Llama...")
+        # 2. Chat AI dengan Groq Model yang Stabil
+        print("Mengirim pertanyaan ke Groq AI...")
         chat_completion = groq_client.chat.completions.create(
             messages=[
                 {
@@ -92,7 +92,9 @@ def voice_chat():
                 },
                 {"role": "user", "content": user_text}
             ],
-            model="llama3-8b-8192",
+            model="openai/gpt-oss-20b",
+            temperature=0.7,
+            max_tokens=100
         )
         ai_reply = chat_completion.choices[0].message.content.strip()
         print("\nAI:", ai_reply)
