@@ -1,12 +1,7 @@
-from flask import Flask, request, jsonify, render_template_string, send_from_directory, abort
+from flask import Flask, request, jsonify, render_template_string
 import os
-import uuid
-import asyncio
 import time
-import wave
-import threading
 from groq import Groq
-import edge_tts
 
 # =========================================================
 # FLASK
@@ -15,122 +10,14 @@ import edge_tts
 app = Flask(__name__)
 
 # =========================================================
-# KONFIGURASI PRODUCTION
-# =========================================================
-
-AUDIO_DIR = "static"
-
-# Maksimum WAV yang boleh diterima (3 MB)
-MAX_UPLOAD_SIZE = 3 * 1024 * 1024
-
-# MP3 hasil TTS akan dipertahankan minimal 10 menit
-FILE_MAX_AGE = 600
-
-# File yang baru dibuat tidak boleh dihapus oleh cleanup sebelum umur minimum ini
-MIN_FILE_AGE = 120
-
-# Maksimum durasi audio WAV (detik)
-MAX_AUDIO_SECONDS = 15
-
-# Maksimum jumlah token AI
-MAX_TOKENS = 100
-
-# Lock untuk proses cleanup
-cleanup_lock = threading.Lock()
-
-# Membuat folder audio
-os.makedirs(AUDIO_DIR, exist_ok=True)
-
-# =========================================================
 # GROQ
 # =========================================================
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
-if not GROQ_API_KEY:
-    print("WARNING: GROQ_API_KEY belum diatur!")
-
 groq_client = None
-
 if GROQ_API_KEY:
-    groq_client = Groq(
-        api_key=GROQ_API_KEY
-    )
-
-# =========================================================
-# ALLOWED FILE
-# =========================================================
-
-ALLOWED_AUDIO_PREFIX = (
-    "input_",
-    "response_"
-)
-
-# =========================================================
-# CLEANUP FILE LAMA
-# =========================================================
-
-def cleanup_old_files():
-    if not cleanup_lock.acquire(blocking=False):
-        return
-
-    try:
-        now = time.time()
-        for filename in os.listdir(AUDIO_DIR):
-            if not filename.startswith(ALLOWED_AUDIO_PREFIX):
-                continue
-            file_path = os.path.join(AUDIO_DIR, filename)
-            if not os.path.isfile(file_path):
-                continue
-            try:
-                file_age = now - os.path.getmtime(file_path)
-                if file_age < MIN_FILE_AGE:
-                    continue
-                if file_age > FILE_MAX_AGE:
-                    try:
-                        os.remove(file_path)
-                        print("CLEANUP:", filename)
-                    except FileNotFoundError:
-                        pass
-            except Exception as e:
-                print("Cleanup file error:", filename, str(e))
-    finally:
-        cleanup_lock.release()
-
-# =========================================================
-# VALIDASI WAV
-# =========================================================
-
-def validate_wav(file_path):
-    try:
-        with wave.open(file_path, "rb") as wav:
-            channels = wav.getnchannels()
-            sample_width = wav.getsampwidth()
-            sample_rate = wav.getframerate()
-            frames = wav.getnframes()
-
-            if channels <= 0 or sample_width <= 0 or sample_rate <= 0 or frames <= 0:
-                return False, "Format WAV tidak valid"
-
-            duration = frames / float(sample_rate)
-            if duration > MAX_AUDIO_SECONDS:
-                return False, f"Durasi audio terlalu panjang. Maksimal {MAX_AUDIO_SECONDS} detik."
-
-            return True, None
-    except Exception as e:
-        return False, f"Gagal membaca WAV: {str(e)}"
-
-# =========================================================
-# EDGE TTS
-# =========================================================
-
-async def generate_edge_tts(text, output_path):
-    voice = "id-ID-GadisNeural"
-    communicate = edge_tts.Communicate(text=text, voice=voice, rate="+10%", pitch="+15Hz")
-    await communicate.save(output_path)
-
-def run_tts(text, output_path):
-    asyncio.run(generate_edge_tts(text, output_path))
+    groq_client = Groq(api_key=GROQ_API_KEY)
 
 # =========================================================
 # HOME (WEB INTERFACE & API INFO)
@@ -138,8 +25,7 @@ def run_tts(text, output_path):
 
 @app.route("/")
 def home():
-    # Jika diakses dari browser, tampilkan halaman web interaktif
-    # Jika diakses script/ESP32 dengan Header Accept: application/json, berikan respon JSON
+    # Jika diakses dari browser HP, tampilkan halaman web chat dengan suara bawaan browser
     if "text/html" in request.headers.get("Accept", ""):
         html_template = """
         <!DOCTYPE html>
@@ -163,7 +49,7 @@ def home():
         </head>
         <body>
             <div class="card">
-                <h2>🤖 Mainan AI Server</h2>
+                <h2>🤖 Mainan AI Vercel</h2>
                 <p>Tekan tombol untuk berbicara dengan AI!</p>
                 <button id="recordBtn" onclick="toggleRecord()">🎤 Tekan untuk Bicara</button>
                 <p id="status">Status: Siap</p>
@@ -176,6 +62,16 @@ def home():
                 let mediaRecorder;
                 let audioChunks = [];
                 let isRecording = false;
+
+                // Fungsi untuk membuat browser ngomong (TTS bawaan HP)
+                function speakText(text) {
+                    if ('speechSynthesis' in window) {
+                        const utterance = new SpeechSynthesisUtterance(text);
+                        utterance.lang = 'id-ID'; // Bahasa Indonesia
+                        utterance.rate = 1.0;     // Kecepatan
+                        window.speechSynthesis.speak(utterance);
+                    }
+                }
 
                 async function toggleRecord() {
                     const btn = document.getElementById("recordBtn");
@@ -212,9 +108,8 @@ def home():
                                         chatBox.innerHTML += `<div class="chat-msg ai-text"><b>AI:</b> ${result.ai_reply}</div>`;
                                         chatBox.scrollTop = chatBox.scrollHeight;
                                         
-                                        // Putar Suara Balasan AI
-                                        const audio = new Audio(result.audio_url);
-                                        audio.play();
+                                        // HP langsung membacakan jawaban AI secara otomatis!
+                                        speakText(result.ai_reply);
                                     } else {
                                         status.innerText = "Error: " + result.error;
                                     }
@@ -233,7 +128,7 @@ def home():
                             btn.classList.add("recording");
                             status.innerText = "Merekam suara... Silakan bicara.";
                         } catch (err) {
-                            alert("Gagal mengakses mikrofon! Pastikan izin mikrofon diaktifkan.");
+                            alert("Gagal mengakses mikrofon! Pastikan izin mikrofon diaktifkan di browser.");
                         }
                     } else {
                         mediaRecorder.stop();
@@ -245,12 +140,10 @@ def home():
         """
         return render_template_string(html_template)
     
-    # Respon default untuk ESP32 atau API Tester
     return jsonify({
         "status": "online",
         "server": "Mainan AI Server Vercel",
-        "version": "production",
-        "message": "Server aktif dan siap menerima request dari Web maupun ESP32"
+        "message": "Server aktif"
     })
 
 # =========================================================
@@ -271,14 +164,7 @@ def health():
 
 @app.route("/voice-chat", methods=["POST"])
 def voice_chat():
-    input_path = None
-    output_path = None
-    request_id = str(uuid.uuid4())
-    start_time = time.time()
-
     try:
-        cleanup_old_files()
-
         if groq_client is None:
             return jsonify({"status": "error", "error": "GROQ_API_KEY belum diatur"}), 500
 
@@ -286,20 +172,10 @@ def voice_chat():
         if not wav_data or len(wav_data) < 44:
             return jsonify({"status": "error", "error": "Data audio kosong atau tidak valid"}), 400
 
-        if len(wav_data) > MAX_UPLOAD_SIZE:
-            return jsonify({"status": "error", "error": "Ukuran audio melebihi batas 3 MB"}), 413
-
-        # Simpan sementara
-        input_filename = f"input_{request_id}.wav"
-        input_path = os.path.join(AUDIO_DIR, input_filename)
-
+        # Simpan sementara di memori/folder tmp Vercel
+        input_path = "/tmp/input_audio.wav"
         with open(input_path, "wb") as f:
             f.write(wav_data)
-
-        # Validasi WAV
-        valid_wav, wav_error = validate_wav(input_path)
-        if not valid_wav:
-            return jsonify({"status": "error", "error": wav_error}), 400
 
         # 1. Groq Whisper (STT)
         with open(input_path, "rb") as audio_file:
@@ -329,67 +205,18 @@ def voice_chat():
                 {"role": "user", "content": user_text}
             ],
             temperature=0.7,
-            max_tokens=MAX_TOKENS
+            max_tokens=100
         )
         ai_reply = chat_completion.choices[0].message.content.strip()
 
         if not ai_reply:
             return jsonify({"status": "error", "error": "AI tidak merespon"}), 500
 
-        # 3. Edge TTS (Text to Speech)
-        output_filename = f"response_{request_id}.mp3"
-        output_path = os.path.join(AUDIO_DIR, output_filename)
-        run_tts(ai_reply, output_path)
-
-        if not os.path.exists(output_path) or os.path.getsize(output_path) <= 0:
-            return jsonify({"status": "error", "error": "Gagal menghasilkan file audio TTS"}), 500
-
-        output_size = os.path.getsize(output_path)
-        audio_url = request.host_url.rstrip("/") + "/static/" + output_filename
-        total_time = time.time() - start_time
-
-        # Hapus file input WAV sementara
-        if input_path and os.path.exists(input_path):
-            os.remove(input_path)
-            input_path = None
-
         return jsonify({
             "status": "success",
-            "request_id": request_id,
             "user_text": user_text,
-            "ai_reply": ai_reply,
-            "audio_url": audio_url,
-            "audio_size": output_size,
-            "processing_time": round(total_time, 2)
+            "ai_reply": ai_reply
         })
 
     except Exception as e:
-        return jsonify({"status": "error", "request_id": request_id, "error": str(e)}), 500
-
-    finally:
-        if input_path and os.path.exists(input_path):
-            try:
-                os.remove(input_path)
-            except:
-                pass
-
-# =========================================================
-# DOWNLOAD / STREAM MP3
-# =========================================================
-
-@app.route("/static/<path:filename>", methods=["GET"])
-def serve_audio(filename):
-    if not filename.startswith("response_") or not filename.endswith(".mp3"):
-        abort(404)
-    file_path = os.path.join(AUDIO_DIR, filename)
-    if not os.path.isfile(file_path):
-        abort(404)
-    return send_from_directory(AUDIO_DIR, filename)
-
-# =========================================================
-# START SERVER LOKAL (JIKA DIJALANKAN DI PC)
-# =========================================================
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+        return jsonify({"status": "error", "error": str(e)}), 500
