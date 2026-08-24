@@ -33,7 +33,7 @@ def home():
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Mainan AI Voice Chat</title>
+            <title>Mainan AI Vercel</title>
             <style>
                 body { font-family: Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
                 .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
@@ -172,7 +172,7 @@ def voice_chat():
         if not wav_data or len(wav_data) < 44:
             return jsonify({"status": "error", "error": "Data audio kosong atau tidak valid"}), 400
 
-        # Simpan sementara di memori/folder tmp Vercel
+        # Simpan sementara di folder tmp Vercel
         input_path = "/tmp/input_audio.wav"
         with open(input_path, "wb") as f:
             f.write(wav_data)
@@ -189,9 +189,9 @@ def voice_chat():
         if not user_text:
             return jsonify({"status": "error", "error": "Suara tidak terdeteksi"}), 400
 
-        # 2. Groq Llama (AI Chat)
+        # 2. Groq Llama (AI Chat) - Menggunakan model yang aktif saat ini
         chat_completion = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="llama-3.3-70b-versatile",
             messages=[
                 {
                     "role": "system",
