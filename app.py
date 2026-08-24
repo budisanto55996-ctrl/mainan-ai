@@ -22,7 +22,7 @@ if not GROQ_API_KEY:
     print("PERINGATAN: GROQ_API_KEY belum diatur!")
 
 # =========================================================
-# GROQ CLIENT (Whisper & Llama)
+# GROQ CLIENT (Whisper & Llama/GPT-OSS)
 # =========================================================
 groq_client = None
 if GROQ_API_KEY:
@@ -82,8 +82,8 @@ def voice_chat():
         if not user_text:
             return jsonify({"status": "error", "error": "Suara tidak terdeteksi"}), 400
 
-        # 2. Chat AI dengan Groq Model Aktif (llama-3.1-8b-instant)
-        print("Mengirim pertanyaan ke Groq Llama...")
+        # 2. Chat AI dengan Groq Model Aktif (openai/gpt-oss-20b)
+        print("Mengirim pertanyaan ke Groq AI...")
         chat_completion = groq_client.chat.completions.create(
             messages=[
                 {
@@ -92,7 +92,7 @@ def voice_chat():
                 },
                 {"role": "user", "content": user_text}
             ],
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             temperature=0.7,
             max_tokens=150
         )
